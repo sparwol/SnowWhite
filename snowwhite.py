@@ -200,8 +200,7 @@ def scan_sql_injection(url):
         # make the HTTP request
         res = s.get(new_url)
         if is_vulnerable(res):
-            # SQL Injection detected on the URL itself, 
-            # no need to preceed for extracting forms and submitting them
+            # SQL Injection detected on the URL
             print("[ + ] SQL Injection vulnerability detected, link:", new_url)
             return
     # test on HTML forms
@@ -209,14 +208,12 @@ def scan_sql_injection(url):
     print(f"[ + ] Detected {len(forms)} forms on {url}.")
     for form in forms:
         form_details = get_form_details(form)
-        #pprint(form_details)
         for c in "\"'":
             # the data body we want to submit
             data = {}
             for input_tag in form_details["inputs"]:
                 if input_tag["value"] or input_tag["type"] == "hidden":
-                    # any input form that has some value or hidden,
-                    # just use it in the form body
+                    # any input form that has some value or hidden
                     try:
                         data[input_tag["name"]] = input_tag["value"] + c
                     except:
@@ -334,7 +331,6 @@ def xss():
 #=================PHP Vulns================#
 
 def php_scan(url):
-  if(validators.url(url)):
     result_html = bs(requests.get(url).content, "html.parser")
     phptext = TextBlob(requests.get(url).text)
     include_count = phptext.word_counts['php\?include']
@@ -343,9 +339,7 @@ def php_scan(url):
     print('[ + ] Instances of file inclusions: ' + str(include_count))
     print('[ + ] Instances of potentially unvalidated redirects: ' + str(red_count))
     print('[ + ] Instances of direct object reference: ' + str(dirobj_count))
-  else:
-    print('Invalud URL. URLs must be in the form \'http://www.mydomain.com\'. Try Again.')
-
+  
 def php():
     tic = time.perf_counter()
     print('PHP Vulnerabilities for ' + url)
@@ -380,6 +374,9 @@ menu_actions = {
 
 # Main Program
 if __name__ == "__main__":
-    # Launch main menu
-    print('Using ' + url)
-    main_menu()
+    if(validators.url(url)):
+        # Launch main menu
+        print('Using ' + url)
+        main_menu()
+    else:
+        print('Invalud URL. URLs must be in the form \'http://www.mydomain.com\'. Try Again.')
