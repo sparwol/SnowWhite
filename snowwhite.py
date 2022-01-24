@@ -35,6 +35,9 @@ url = args.url
 port = args.port 
 menu_actions  = {}
 
+original_stdout = sys.stdout # Save a reference to the original standard output
+
+
 # =======================
 #     MENUS FUNCTIONS
 # =======================
@@ -112,6 +115,7 @@ class Vuln:
 #=============== HTTP Scraper ==============#
 
 class Scraper(Vuln):
+    input
     def __init__(host):
         print(host)
         result_html = bs(requests.get(host).text, "html.parser")
@@ -120,7 +124,7 @@ class Scraper(Vuln):
         parwords = TextBlob(requests.get(host).text)
 
         print('URL validated')
-    
+
         with open('./plaintext.txt') as f: 
             lines = [line.strip() for line in f]
         for keyword in lines:
@@ -313,12 +317,14 @@ class Php(Vuln):
     def __init__(url):
         result_html = bs(requests.get(url).content, "html.parser")
         phptext = TextBlob(requests.get(url).text)
-        include_count = phptext.word_counts['php\?include']
-        red_count = phptext.word_counts['php\?redirect']
-        dirobj_count = phptext.word_counts['php\?documentID']
-        print('[ + ] Instances of file inclusions: ' + str(include_count))
+        include_count = phptext.word_counts['php?include=']
+        red_count = phptext.word_counts['php?redirect=']
+        dirobj_count = phptext.word_counts['php?documentID=']
+        file_count = phptext.word_counts['php?file=']
+        print('[ + ] Instances of file inclusions: ' + str(include_count + file_count))
         print('[ + ] Instances of potentially unvalidated redirects: ' + str(red_count))
         print('[ + ] Instances of direct object reference: ' + str(dirobj_count))
+        
     
     def vuln_scan():
         tic = time.perf_counter()
@@ -380,6 +386,8 @@ class Fuzzer(Vuln):
                         data[input_tag["name"]] = value
                         i += 1
                     break
+                else:
+                    print('No forms to fuzz.')
 
     def vuln_scan():
         try: 
