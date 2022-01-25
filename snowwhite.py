@@ -33,8 +33,9 @@ parser.add_argument('port', type=int, help="The port to be used")
 args = parser.parse_args()
 url = args.url
 port = args.port 
+outfilename = url.replace('http://', '').replace('https://', '').rstrip('/')
 menu_actions  = {}
-
+print(outfilename)
 original_stdout = sys.stdout # Save a reference to the original standard output
 
 
@@ -48,6 +49,8 @@ def clrscn():
     _ = os.system('clear')
   else:
     _ = os.system('cls')
+
+            
 
 # Main menu
 def main_menu():
@@ -115,9 +118,8 @@ class Vuln:
 #=============== HTTP Scraper ==============#
 
 class Scraper(Vuln):
-    input
+    
     def __init__(host):
-        print(host)
         result_html = bs(requests.get(host).text, "html.parser")
         password_inputs = result_html.find_all('input', { 'name' : 'password'})  
         comments = result_html.find_all(string=lambda text:isinstance(text,Comment)) 
@@ -136,13 +138,19 @@ class Scraper(Vuln):
     def vuln_scan():
         tic = time.perf_counter()
         print('Plaintext Vulnerabilities for ' + url)
+        answer = input('Save to file? ')
         try:
-            Scraper.__init__(url)
-            toc = time.perf_counter()
-            print(f'Scan completed in {toc - tic:0.4f} seconds')
+            if answer.lower() in 'yes': 
+                with open(outfilename+"_s.txt", 'w+') as s:
+                    s.write(str(Scraper.__init__(url)))
+                    s.close
+            else:
+                Scraper.__init__(url)
+                toc = time.perf_counter()
+                print(f'Scan completed in {toc - tic:0.4f} seconds')
         except:
             print('Could not complete HTTP scrape')
-            print(sys.exc_info()[0])
+            print(sys.exc_info())
         finally:
             main_menu()
  
@@ -239,10 +247,16 @@ class Sqlinject(Vuln):
     def vuln_scan():
         tic = time.perf_counter()
         print('SQLi Vulnerabilities for ' + url)
+        answer = input('Save to file? ')
         try:
-            Sqlinject.scan_sql_injection(url)
-            toc = time.perf_counter()
-            print(f'Scan completed in {toc - tic:0.4f} seconds')
+            if answer.lower() in 'yes': 
+                with open(outfilename+"_i.txt", 'w+') as i:
+                    i.write(str(Sqlinject.scan_sql_injection(url)))
+                    i.close
+            else:
+                Sqlinject.scan_sql_injection(url)
+                toc = time.perf_counter()
+                print(f'Scan completed in {toc - tic:0.4f} seconds')
         except:
             print('No forms to scan.')
         finally:
@@ -300,10 +314,16 @@ class Xss(Vuln):
     def vuln_scan():
         tic = time.perf_counter()
         print('XSS Vulnerabilities for ' + url)
+        answer = input('Save to file? ')
         try:
-            print(Xss.__init__(url))  
-            toc = time.perf_counter()
-            print(f'Scan completed in {toc - tic:0.4f} seconds')
+            if answer.lower() in 'yes': 
+                with open(outfilename+"_x.txt", 'w+') as x:
+                    x.write(str(Xss.__init__(url)))
+                    x.close
+            else:
+                print(Xss.__init__(url))  
+                toc = time.perf_counter()
+                print(f'Scan completed in {toc - tic:0.4f} seconds')
         except:
            print('Could not complete XSS scan')
            print(sys.exc_info()[0])
@@ -329,10 +349,16 @@ class Php(Vuln):
     def vuln_scan():
         tic = time.perf_counter()
         print('PHP Vulnerabilities for ' + url)
-        try: 
-            Php.__init__(url)
-            toc = time.perf_counter()
-            print(f'Scan completed in {toc - tic:0.4f} seconds')
+        answer = input('Save to file? ')
+        try:
+            if answer.lower() in 'yes': 
+                with open(outfilename+"_p.txt", 'w+') as p:
+                    p.write(str(Php.__init__(url)))
+                    p.close
+            else: 
+                Php.__init__(url)
+                toc = time.perf_counter()
+                print(f'Scan completed in {toc - tic:0.4f} seconds')
         except:
             print('Could not complete PHP scan')
             print(sys.exc_info()[0])
@@ -361,11 +387,25 @@ class Verbtamp(Vuln):
 
     def vuln_scan():
         verbs = ['GET', 'POST', 'PUT', 'TRACE', 'CONNECT', 'OPTIONS', 'PROPFIND']
-        for webservmethod in verbs:
-            print(webservmethod)
-            content = webservmethod + '/ HTTP/1.1 Host: ' + url 
-            Verbtamp.__init__(url, port, content.encode())
-        main_menu()
+        answer = input('Save to file? ')
+        try:
+            if answer.lower() in 'yes': 
+                with open(outfilename+"_v.txt", 'w+') as v:
+                    for webservmethod in verbs:
+                        v.write(str(webservmethod))
+                        content = webservmethod + '/ HTTP/1.1 Host: ' + url 
+                        v.write(str(Verbtamp.__init__(url, port, content.encode())))
+                    v.close
+                    
+            else: 
+                Php.__init__(url)
+                toc = time.perf_counter()
+                print(f'Scan completed in {toc - tic:0.4f} seconds')
+        except:
+            print('Could not complete verb tampering scan')
+            print(sys.exc_info()[0])
+        finally:
+            main_menu()
 
 #=============== Fuzzer ===============#
 
@@ -386,14 +426,19 @@ class Fuzzer(Vuln):
                         data[input_tag["name"]] = value
                         i += 1
                     break
-                else:
-                    print('No forms to fuzz.')
 
     def vuln_scan():
-        try: 
-            Fuzzer.__init__(url)
+        answer = input('Save to file? ')
+        try:
+            if answer.lower() in 'yes': 
+                with open(outfilename+"_p.txt", 'w+') as p:
+                    p.write(str(Fuzzer.__init__(url)))
+                    p.close
+            else: 
+                print('No buffer overflow found.')
         except:
-            pass
+            print('Could not complete fuzzer scan')
+            print(sys.exc_info()[0])
         main_menu()
 
 # =======================
