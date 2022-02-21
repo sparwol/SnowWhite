@@ -9,8 +9,6 @@ Version: 1.0
 Author: sparwol
 Last Edited: 01/16/22
 
-Estimated time: 2:30H
-Actual time: 3:00H
 
 '''             
 
