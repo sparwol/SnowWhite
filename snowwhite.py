@@ -417,12 +417,12 @@ class Fuzzer(Vuln):
                     data[input_tag["name"]] = input_tag["value"]
                 elif input_tag["type"] != "submit":
                     # all others except submit, prompt the user to set it
-                    i=1
-                    while i <= 10000:
-                        print('Trying ' + str(i) + ' characters')
-                        value = 'A' * i
-                        data[input_tag["name"]] = value
-                        i += 1
+                    wordlist = input('Choose wordlist: ')
+                    with open(wordlist) as f: 
+                        lines = [line.strip() for line in f]
+                        for keyword in lines:
+                            print('Trying ' + keyword)
+                            data[input_tag["name"]] = keyword
                     break
 
     def vuln_scan():
@@ -433,7 +433,7 @@ class Fuzzer(Vuln):
                     p.write(str(Fuzzer.__init__(url)))
                     p.close
             else: 
-                print('No buffer overflow found.')
+                str(Fuzzer.__init__(url))
         except:
             print('Could not complete fuzzer scan')
             print(sys.exc_info()[0])
