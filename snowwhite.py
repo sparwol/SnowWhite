@@ -5,7 +5,7 @@
 Snow White Web Scanner 
 A simple scanner for common web vulnerabilities
 
-Version: 1.0                 
+Version: 1.3                 
 Author: sparwol
 Last Edited: 01/16/22
 
