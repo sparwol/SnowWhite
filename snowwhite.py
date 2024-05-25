@@ -5,16 +5,19 @@
 Snow White Web Scanner 
 A simple scanner for common web vulnerabilities
 
-Version: 1.3                 
+Version: 2.0                 
 Author: sparwol
-Last Edited: 01/16/22
+Last Edited: 05/25/24
 
+'''
 
-'''             
-
-# Imports
-import argparse, os, requests, socket, sys, time, validators
-
+import argparse
+import os
+import requests
+import socket
+import sys
+import time
+import validators
 from bs4 import BeautifulSoup as bs
 from bs4 import Comment
 from pprint import pprint
@@ -22,69 +25,47 @@ from textblob import TextBlob
 from urllib.parse import urlparse, urljoin
 
 # Main definitions
-parser = argparse.ArgumentParser(description='Snow White Web Scanner Version 1.0')
-
-parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0')
+parser = argparse.ArgumentParser(description='Snow White Web Scanner Version 2.0')
+parser.add_argument('-v', '--version', action='version', version='%(prog)s 2.0')
 parser.add_argument('url', type=str, help="The URL of the HTML to analyze")
 parser.add_argument('port', type=int, help="The port to be used")
-
 args = parser.parse_args()
 url = args.url
 port = args.port 
-outfilename = url.replace('http://', '').replace('https://', '').rstrip('/')
-menu_actions  = {}
-print(outfilename)
-original_stdout = sys.stdout # Save a reference to the original standard output
-
+outfilename = urlparse(url).netloc.replace('.', '_')
+menu_actions = {}
 
 # =======================
-#     MENUS FUNCTIONS
+#     MENU FUNCTIONS
 # =======================
 
-# Clear Screen
 def clrscn():
-  if(os.name =='posix'):
-    _ = os.system('clear')
-  else:
-    _ = os.system('cls')
+    os.system('clear' if os.name == 'posix' else 'cls')
 
-            
-
-# Main menu
 def main_menu():
     print('\n#================== MENU ==================#')
     print('Select a scan to begin:')
     print('[s]: Scraper')
     print('[i]: SQL Injection Vulnerability Scan')
-    print('[x]: Cross-Site Scripting (XXS) Vulnerability Scan')
+    print('[x]: Cross-Site Scripting (XSS) Vulnerability Scan')
     print('[p]: PHP Vulnerability')
     print('[v]: Verb Tampering Vulnerability Scan')
     print('[f]: Form Field Fuzzer')
-    print('\n[q]: Quit')
-    choice = input(" >>  ")
+    print('[q]: Quit')
+    choice = input(" >>  ").lower()
     exec_menu(choice)
 
-    return
-
-# Execute menu
 def exec_menu(choice):
     clrscn()
-    ch = choice.lower()
-    if ch == '':
-        menu_actions['main_menu']()
-    else:
-        try:
-            menu_actions[ch]()
-        except KeyError:
-            print('Invalid selection, please try again.\n')
-            menu_actions['main_menu']()
-    return
+    menu_actions.get(choice, invalid_choice)()
 
-# Back to main menu
+def invalid_choice():
+    print('Invalid selection, please try again.\n')
+    main_menu()
+
 def back():
-    menu_actions['main_menu']()
+    main_menu()
 
-# Exit program
 def ex():
     sys.exit()
 
@@ -93,170 +74,128 @@ def ex():
 #==========================================#
 
 class Vuln:
-    def __init__(self, host, port):
-        self.host = host
+    def __init__(self, url, port):
+        self.url = url
         self.port = port
-        
 
     def vuln_scan(self):
-        print('Vulnerabilities for ' + url)
+        print(f'Vulnerabilities for {self.url}')
         try:
             tic = time.perf_counter()
-    
+            # Placeholder for actual scan logic
             toc = time.perf_counter()
             print(f'Scan completed in {toc - tic:0.4f} seconds')
-        except:
-            print('Could not complete Scan')
-            print(sys.exc_info()[0])
+        except Exception as e:
+            print(f'Could not complete Scan: {e}')
         finally:
             main_menu()
-        return None
-
 
 #=============== HTTP Scraper ==============#
 
 class Scraper(Vuln):
     
-    def __init__(host):
-        result_html = bs(requests.get(host).text, "html.parser")
-        password_inputs = result_html.find_all('input', { 'name' : 'password'})  
-        comments = result_html.find_all(string=lambda text:isinstance(text,Comment)) 
-        parwords = TextBlob(requests.get(host).text)
+    def __init__(self, url):
+        super().__init__(url, None)
+        self.result_html = bs(requests.get(url).text, "html.parser")
 
-        print('URL validated')
-
-        with open('./plaintext.txt') as f: 
-            lines = [line.strip() for line in f]
-        for keyword in lines:
-            if parwords.word_counts[keyword] == 0:
-                print('[ - ] Instances of ' + keyword + ': 0')
-            else:
-                print( '[ + ] Instances of ' + keyword + ': ' + str(parwords.word_counts[keyword]))
-    
-    def vuln_scan():
-        tic = time.perf_counter()
-        print('Plaintext Vulnerabilities for ' + url)
-        answer = input('Save to file? ')
+    def scan(self):
+        print(f'Scraping {self.url}')
         try:
-            if answer.lower() in 'yes': 
-                with open(outfilename+"_s.txt", 'w+') as s:
-                    s.write(str(Scraper.__init__(url)))
-                    s.close
-            else:
-                Scraper.__init__(url)
-                toc = time.perf_counter()
-                print(f'Scan completed in {toc - tic:0.4f} seconds')
-        except:
-            print('Could not complete HTTP scrape')
-            print(sys.exc_info())
+            tic = time.perf_counter()
+            password_inputs = self.result_html.find_all('input', {'name': 'password'})
+            comments = self.result_html.find_all(string=lambda text: isinstance(text, Comment))
+            parwords = TextBlob(requests.get(self.url).text)
+
+            with open('./plaintext.txt') as f:
+                keywords = [line.strip() for line in f]
+
+            for keyword in keywords:
+                count = parwords.word_counts[keyword]
+                print(f'[{"+" if count > 0 else "-"}] Instances of {keyword}: {count}')
+
+            toc = time.perf_counter()
+            print(f'Scrape completed in {toc - tic:0.4f} seconds')
+
+            if input('Save to file? (yes/no): ').lower() == 'yes':
+                with open(f"{outfilename}_s.txt", 'w') as f:
+                    f.write(str(self.result_html))
+                print(f'Results saved to {outfilename}_s.txt')
+
+        except Exception as e:
+            print(f'Could not complete HTTP scrape: {e}')
         finally:
             main_menu()
- 
+
 #========== SQL Injection Vulns ===========#
 
 class Sqlinject(Vuln):
 
+    @staticmethod
     def get_all_forms(url):
-        soup = bs(requests.get(url).content, "html.parser")
-        return soup.find_all("form")
+        return bs(requests.get(url).content, "html.parser").find_all("form")
 
+    @staticmethod
     def get_form_details(form):
-        details = {}
-        # get the form action (target url)
-        action = form.attrs.get("action")
-        # get the form method (POST, GET, etc.)
-        method = form.attrs.get("method", "get")
-        # get all the input details such as type and name
-        inputs = []
-        for input_tag in form.find_all("input"):
-            input_type = input_tag.attrs.get("type", "text")
-            input_name = input_tag.attrs.get("name")
-            inputs.append({"type": input_type, "name": input_name})
-        # put everything to the resulting dictionary
-        details["action"] = action
-        details["method"] = method
-        details["inputs"] = inputs
+        details = {
+            "action": form.attrs.get("action"),
+            "method": form.attrs.get("method", "get"),
+            "inputs": [{"type": input_tag.attrs.get("type", "text"), "name": input_tag.attrs.get("name")}
+                       for input_tag in form.find_all("input")]
+        }
         return details
 
+    @staticmethod
     def is_vulnerable(response):
-        """A simple boolean function that determines whether a page 
-        is SQL Injection vulnerable from its `response`"""
         errors = {
-            # MySQL
             "you have an error in your sql syntax;",
             "warning: mysql",
-            # SQL Server
             "unclosed quotation mark after the character string",
-            # Oracle
             "quoted string not properly terminated",
         }
-        for error in errors:
-            # if you find one of these errors, return True
-            if error in response.content.decode().lower():
-                return True
-        # no error detected
-        return False
+        return any(error in response.content.decode().lower() for error in errors)
 
-
-    def scan_sql_injection(url):
-        # test on URL
-        s = requests.Session()
-        #s.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
-        for c in "\"'":
-            # add quote/double quote character to the URL
-            new_url = f"{url}{c}"
-            # make the HTTP request
-            res = s.get(new_url)
-            if Sqlinject.is_vulnerable(res):
-                # SQL Injection detected on the URL
-                print("[ + ] SQL Injection vulnerability detected, link:", new_url)
-                return
-        # test on HTML forms
-        forms = Sqlinject.get_all_forms(url)
-        print(f"[ + ] Detected {len(forms)} forms on {url}.")
-        for form in forms:
-            form_details = Sqlinject.get_form_details(form)
-            for c in "\"'":
-                # the data body we want to submit
-                data = {}
-                for input_tag in form_details["inputs"]:
-                    if input_tag["value"] or input_tag["type"] == "hidden":
-                        # any input form that has some value or hidden
-                        try:
-                            data[input_tag["name"]] = input_tag["value"] + c
-                        except:
-                            pass
-                    elif input_tag["type"] != "submit":
-                        # all others except submit, use some junk data with special character
-                        data[input_tag["name"]] = f"test{c}"
-                # join the url with the action (form request URL)
-                url = urljoin(url, form_details["action"])
-                if form_details["method"] == "post":
-                    res = s.post(url, data=data)
-                elif form_details["method"] == "get":
-                    res = s.get(url, params=data)
-                # test whether the resulting page is vulnerable
-                if Sqlinject.is_vulnerable(res):
-                    print("[ + ] SQL Injection vulnerability detected, link:", url)
-                    print("[ + ] Form:")
-                    pprint(form_details)
-                    break   
-
-    def vuln_scan():
-        tic = time.perf_counter()
-        print('SQLi Vulnerabilities for ' + url)
-        answer = input('Save to file? ')
+    def scan(self):
+        print(f'SQL Injection scan for {self.url}')
         try:
-            if answer.lower() in 'yes': 
-                with open(outfilename+"_i.txt", 'w+') as i:
-                    i.write(str(Sqlinject.scan_sql_injection(url)))
-                    i.close
-            else:
-                Sqlinject.scan_sql_injection(url)
-                toc = time.perf_counter()
-                print(f'Scan completed in {toc - tic:0.4f} seconds')
-        except:
-            print('No forms to scan.')
+            tic = time.perf_counter()
+            s = requests.Session()
+            for char in "\"'":
+                new_url = f"{self.url}{char}"
+                res = s.get(new_url)
+                if self.is_vulnerable(res):
+                    print(f"[+] SQL Injection vulnerability detected, link: {new_url}")
+                    return
+
+            forms = self.get_all_forms(self.url)
+            print(f"[+] Detected {len(forms)} forms on {self.url}.")
+
+            for form in forms:
+                form_details = self.get_form_details(form)
+                for char in "\"'":
+                    data = {input_tag["name"]: input_tag.get("value", f"test{char}") for input_tag in form_details["inputs"]}
+                    target_url = urljoin(self.url, form_details["action"])
+                    if form_details["method"] == "post":
+                        res = s.post(target_url, data=data)
+                    else:
+                        res = s.get(target_url, params=data)
+                    if self.is_vulnerable(res):
+                        print(f"[+] SQL Injection vulnerability detected, link: {target_url}")
+                        print("[*] Form details:")
+                        pprint(form_details)
+                        break
+
+            toc = time.perf_counter()
+            print(f'Scan completed in {toc - tic:0.4f} seconds')
+
+            if input('Save to file? (yes/no): ').lower() == 'yes':
+                with open(f"{outfilename}_i.txt", 'w') as f:
+                    f.write(f"Detected {len(forms)} forms on {self.url}.\n")
+                    for form in forms:
+                        f.write(str(self.get_form_details(form)) + "\n")
+                print(f'Results saved to {outfilename}_i.txt')
+
+        except Exception as e:
+            print(f'No forms to scan: {e}')
         finally:
             main_menu()
 
@@ -264,194 +203,156 @@ class Sqlinject(Vuln):
 
 class Xss(Vuln):
 
+    @staticmethod
     def submit_form(form_details, url, value):
-        # construct the full URL 
         target_url = urljoin(url, form_details["action"])
-        # get the inputs
-        inputs = form_details["inputs"]
-        data = {}
-        for input in inputs:
-            # replace all text and search values with `value`
-            if input["type"] == "text" or input["type"] == "search":
-                input["value"] = value
-            input_name = input.get("name")
-            input_value = input.get("value")
-            if input_name and input_value:
-                # if input name and value are not None, 
-                # then add them to the data of form submission
-                data[input_name] = input_value
+        data = {input_tag["name"]: value if input_tag["type"] in ["text", "search"] else input_tag.get("value")
+                for input_tag in form_details["inputs"]}
+        return requests.post(target_url, data=data) if form_details["method"] == "post" else requests.get(target_url, params=data)
 
-        if form_details["method"] == "post":
-            return requests.post(target_url, data=data)
-        else:
-            # GET request
-            return requests.get(target_url, params=data)
-
-    def __init__(url):
-        # get all the forms from the URL
-        forms = Sqlinject.get_all_forms(url)
-        if len(forms) == 0:
-            print(f"[ - ] Detected 0 forms on {url}.")
-        else:
-            print(f"[ + ] Detected {len(forms)} forms on {url}.")
-        js_script = "<script>alert('This is a test.')</script>"
-        # returning value
-        is_vulnerable = False
-        # iterate over all forms
-        for form in forms:
-            form_details = Sqlinject.get_form_details(form)
-            content = Xss.submit_form(form_details, url, js_script).content.decode()
-            if js_script in content:
-                print(f"[ + ] XSS Detected on {url}")
-                print(f"[ * ] Form details:")
-                pprint(form_details)
-                is_vulnerable = True
-            else:
-                print('No vulnerable forms detected.')
-
-    def vuln_scan():
-        tic = time.perf_counter()
-        print('XSS Vulnerabilities for ' + url)
-        answer = input('Save to file? ')
+    def scan(self):
+        print(f'XSS scan for {self.url}')
         try:
-            if answer.lower() in 'yes': 
-                with open(outfilename+"_x.txt", 'w+') as x:
-                    x.write(str(Xss.__init__(url)))
-                    x.close
+            tic = time.perf_counter()
+            forms = Sqlinject.get_all_forms(self.url)
+            if not forms:
+                print(f"[ - ] Detected 0 forms on {self.url}.")
             else:
-                print(Xss.__init__(url))  
-                toc = time.perf_counter()
-                print(f'Scan completed in {toc - tic:0.4f} seconds')
-        except:
-           print('Could not complete XSS scan')
-           print(sys.exc_info()[0])
+                print(f"[+] Detected {len(forms)} forms on {self.url}.")
+
+            js_script = "<script>alert('This is a test.')</script>"
+            for form in forms:
+                form_details = Sqlinject.get_form_details(form)
+                content = self.submit_form(form_details, self.url, js_script).content.decode()
+                if js_script in content:
+                    print(f"[+] XSS Detected on {self.url}")
+                    print(f"[*] Form details:")
+                    pprint(form_details)
+                else:
+                    print(f"[-] No vulnerable forms detected.")
+
+            toc = time.perf_counter()
+            print(f'Scan completed in {toc - tic:0.4f} seconds')
+
+            if input('Save to file? (yes/no): ').lower() == 'yes':
+                with open(f"{outfilename}_x.txt", 'w') as f:
+                    f.write(f"Detected {len(forms)} forms on {self.url}.\n")
+                    for form in forms:
+                        f.write(str(form_details) + "\n")
+                print(f'Results saved to {outfilename}_x.txt')
+
+        except Exception as e:
+            print(f'Could not complete XSS scan: {e}')
         finally:
-           main_menu()
+            main_menu()
 
 #=================PHP Vulns================#
 
 class Php(Vuln):
 
-    def __init__(url):
-        result_html = bs(requests.get(url).content, "html.parser")
-        phptext = TextBlob(requests.get(url).text)
-        include_count = phptext.word_counts['php?include=']
-        red_count = phptext.word_counts['php?redirect=']
-        dirobj_count = phptext.word_counts['php?documentID=']
-        file_count = phptext.word_counts['php?file=']
-        print('[ + ] Instances of file inclusions: ' + str(include_count + file_count))
-        print('[ + ] Instances of potentially unvalidated redirects: ' + str(red_count))
-        print('[ + ] Instances of direct object reference: ' + str(dirobj_count))
-        
-    
-    def vuln_scan():
-        tic = time.perf_counter()
-        print('PHP Vulnerabilities for ' + url)
-        answer = input('Save to file? ')
+    def scan(self):
+        print(f'PHP vulnerability scan for {self.url}')
         try:
-            if answer.lower() in 'yes': 
-                with open(outfilename+"_p.txt", 'w+') as p:
-                    p.write(str(Php.__init__(url)))
-                    p.close
-            else: 
-                Php.__init__(url)
-                toc = time.perf_counter()
-                print(f'Scan completed in {toc - tic:0.4f} seconds')
-        except:
-            print('Could not complete PHP scan')
-            print(sys.exc_info()[0])
+            tic = time.perf_counter()
+            result_html = bs(requests.get(self.url).content, "html.parser")
+            phptext = TextBlob(result_html.text)
+            include_count = phptext.word_counts['php?include=']
+            redir_count = phptext.word_counts['php?redir=']
+            print(f"[{'+' if include_count > 0 else '-'}] PHP Include URL Parameter found: {include_count}")
+            print(f"[{'+' if redir_count > 0 else '-'}] PHP Redir URL Parameter found: {redir_count}")
+
+            toc = time.perf_counter()
+            print(f'Scan completed in {toc - tic:0.4f} seconds')
+
+            if input('Save to file? (yes/no): ').lower() == 'yes':
+                with open(f"{outfilename}_p.txt", 'w') as f:
+                    f.write(f"PHP Include URL Parameter count: {include_count}\n")
+                    f.write(f"PHP Redir URL Parameter count: {redir_count}\n")
+                print(f'Results saved to {outfilename}_p.txt')
+
+        except Exception as e:
+            print(f'Could not complete PHP vulnerability scan: {e}')
         finally:
             main_menu()
 
-#================HTTP Verbs================#
+#===========HTTP Verb Tampering============#
 
-class Verbtamp(Vuln):
+class Verb(Vuln):
 
-    def __init__(host, port, content):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        host_noscheme = host.replace('http://', '').replace('https://', '').rstrip('/')    
-        sock.connect((host_noscheme, port))
-        sock.sendall(content)
-        time.sleep(0.5)
-        sock.shutdown(socket.SHUT_WR)
-        rsv = ''
-        while True:
-            data = sock.recv(1024)
-            if(not data):
-                break
-            rsv += data.decode()
-        print(rsv)
-        sock.close()
-
-    def vuln_scan():
-        verbs = ['GET', 'POST', 'PUT', 'TRACE', 'CONNECT', 'OPTIONS', 'PROPFIND']
-        answer = input('Save to file? ')
+    def scan(self):
+        print(f'HTTP Verb Tampering scan for {self.url}')
         try:
-            if answer.lower() in 'yes': 
-                with open(outfilename+"_v.txt", 'w+') as v:
-                    for webservmethod in verbs:
-                        v.write(str(webservmethod))
-                        content = webservmethod + '/ HTTP/1.1 Host: ' + url 
-                        v.write(str(Verbtamp.__init__(url, port, content.encode())))
-                    v.close
-                    
-            else: 
-                Php.__init__(url)
-                toc = time.perf_counter()
-                print(f'Scan completed in {toc - tic:0.4f} seconds')
-        except:
-            print('Could not complete verb tampering scan')
-            print(sys.exc_info()[0])
+            tic = time.perf_counter()
+            methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'TRACE', 'CONNECT', 'PATCH']
+            for method in methods:
+                req = requests.request(method, self.url)
+                print(f'[{req.status_code}] {method} {req.url}')
+
+            toc = time.perf_counter()
+            print(f'Scan completed in {toc - tic:0.4f} seconds')
+
+            if input('Save to file? (yes/no): ').lower() == 'yes':
+                with open(f"{outfilename}_v.txt", 'w') as f:
+                    for method in methods:
+                        req = requests.request(method, self.url)
+                        f.write(f'[{req.status_code}] {method} {req.url}\n')
+                print(f'Results saved to {outfilename}_v.txt')
+
+        except Exception as e:
+            print(f'Could not complete Verb Tampering scan: {e}')
         finally:
             main_menu()
 
-#=============== Fuzzer ===============#
+#===========Form Field Fuzzer==============#
 
 class Fuzzer(Vuln):
-    def __init__(url):
-        data = {}
-        for form in Sqlinject.get_all_forms(url):
-            for input_tag in Sqlinject.get_form_details(form)["inputs"]:
-                if input_tag["type"] == "hidden":
-                    # if it's hidden, use the default value
-                    data[input_tag["name"]] = input_tag["value"]
-                elif input_tag["type"] != "submit":
-                    # all others except submit, prompt the user to set it
-                    wordlist = input('Choose wordlist: ')
-                    with open(wordlist) as f: 
-                        lines = [line.strip() for line in f]
-                        for keyword in lines:
-                            print('Trying ' + keyword)
-                            data[input_tag["name"]] = keyword
-                    break
 
-    def vuln_scan():
-        answer = input('Save to file? ')
+    def scan(self):
+        print(f'Form Field Fuzzer scan for {self.url}')
         try:
-            if answer.lower() in 'yes': 
-                with open(outfilename+"_p.txt", 'w+') as p:
-                    p.write(str(Fuzzer.__init__(url)))
-                    p.close
-            else: 
-                str(Fuzzer.__init__(url))
-        except:
-            print('Could not complete fuzzer scan')
-            print(sys.exc_info()[0])
-        main_menu()
+            tic = time.perf_counter()
+            fuzz = 'FUZZ'
+            forms = Sqlinject.get_all_forms(self.url)
+            print(f"[+] Detected {len(forms)} forms on {self.url}.")
+
+            for form in forms:
+                form_details = Sqlinject.get_form_details(form)
+                print(f"[+] Fuzzing form details:")
+                pprint(form_details)
+                for input_tag in form_details["inputs"]:
+                    input_name = input_tag["name"]
+                    data = {input_name: fuzz}
+                    res = requests.post(urljoin(self.url, form_details["action"]), data=data) if form_details["method"] == "post" else requests.get(urljoin(self.url, form_details["action"]), params=data)
+                    print(f"[*] Fuzzing input: {input_name}, Status: {res.status_code}")
+
+            toc = time.perf_counter()
+            print(f'Scan completed in {toc - tic:0.4f} seconds')
+
+            if input('Save to file? (yes/no): ').lower() == 'yes':
+                with open(f"{outfilename}_f.txt", 'w') as f:
+                    f.write(f"Detected {len(forms)} forms on {self.url}.\n")
+                    for form in forms:
+                        f.write(str(form_details) + "\n")
+                        for input_tag in form_details["inputs"]:
+                            f.write(f"Fuzzing input: {input_tag['name']}\n")
+                print(f'Results saved to {outfilename}_f.txt')
+
+        except Exception as e:
+            print(f'Could not complete Form Field Fuzzer scan: {e}')
+        finally:
+            main_menu()
 
 # =======================
-#    MENUS DEFINITIONS
+#     MENUS DEFINITIONS
 # =======================
 
-# Menu definition
 menu_actions = {
-    'main_menu': main_menu,
-    's': Scraper.vuln_scan,
-    'i': Sqlinject.vuln_scan,
-    'x': Xss.vuln_scan,
-    'p': Php.vuln_scan,
-    'v': Verbtamp.vuln_scan,
-    'f': Fuzzer.vuln_scan,
+    's': Scraper(url).scan,
+    'i': Sqlinject(url, port).scan,
+    'x': Xss(url, port).scan,
+    'p': Php(url, port).scan,
+    'v': Verb(url, port).scan,
+    'f': Fuzzer(url, port).scan,
     'q': ex,
 }
 
@@ -459,29 +360,9 @@ menu_actions = {
 #      MAIN PROGRAM
 # =======================
 
-# Main Program
 if __name__ == "__main__":
-    if(validators.url(url)):
-        if(0 < port < 65536):
-            # Launch main menu
-            # Banner
-            banner = '''
-            #===========================================================================================#
-            #                                                                                           #
-            #      ______                                ______        ______      (_)   /|             #
-            #     / /  \/  ___  __    _____ ____        __ \ \    __    / | | __   ___ _|_|_  ____      #
-            #     \_\____   | |/\ \  / | | \ \ \   /\   /   \ \   /\   /  | |/\ \  | |  | |  /\ \/      #
-            #    ____  \ \  | |  | ||  | |  | \ \ /\ \ /     \ \ /\ \ /   | |  | | | |  | |  \ \/  /    #
-            #     \_\__/_/ _|_|_ |_|_\_|_|_/   \_/  \_/       \_/  \_/   _|_|_ |_|_|_|_  \|_  \_\_/     #
-            #                                                                                           #
-            #                                   Vulnerability Scanner                                   #
-            #                                                                                           #
-            #===========================================================================================#
-            '''
-            print(banner)
-            print('Using ' + url + ' on port ' + str(port))
-            main_menu()
-        else: 
-            print('Invalid port.')
+    if validators.url(url):
+        main_menu()
     else:
-        print('Invalud URL. URLs must be in the form \'http://www.example.com\'. Try Again.')
+        print('Invalid URL. Please enter a valid URL and try again.')
+        sys.exit(1)
